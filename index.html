@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>东方财富主力股三破三收列表</title>
+  <title>东方财富主力股数据列表</title>
   <style>
     body {
       font-family: "Microsoft YaHei", sans-serif;
@@ -12,6 +12,45 @@
     h1 {
       text-align: center;
       color: #333;
+    }
+    .tabs {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .tab-btn {
+      display: inline-block;
+      padding: 10px 20px;
+      margin: 0 10px;
+      background-color: #e0e0e0;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      border-radius: 4px;
+    }
+    .tab-btn.active {
+      background-color: #4CAF50;
+      color: white;
+    }
+    #update-time {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+    #loading-ring {
+      text-align: center;
+      margin-top: 40px;
+    }
+    .spinner {
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #4CAF50;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
     table {
       width: 100%;
@@ -33,51 +72,89 @@
   </style>
 </head>
 <body>
-  <h1>东方财富主力股三破三收列表</h1>
+  <h1>东方财富主力股数据列表</h1>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('sanpo')">三破三收</button>
+    <button class="tab-btn" onclick="switchTab('flow')">外盘内盘</button>
+  </div>
+
   <div id="update-time">数据更新时间：</div>
+
+  <div id="loading-ring" style="display: none;">
+    <div class="spinner"></div>
+  </div>
+
   <table id="stock-table">
-    <thead>
-      <tr>
-        <th>股票名称</th>
-        <th>股票代号</th>
-        <th>主力净流入占比</th>
-        <th>首板日期</th>
-        <th>首板开盘价</th>
-        <th>首板收盘价</th>
-        <th>首板最低价</th>
-        <th>三破日期</th>
-        <th>三破最低价</th>
-        <th>三收日期</th>
-        <th>三收最高价</th>
-      </tr>
-    </thead>
+    <thead></thead>
     <tbody></tbody>
   </table>
 
   <script>
-    fetch("https://lmh1993.pythonanywhere.com/get-result")
-    .then(res => res.json())
-    .then(response => {
-        const updateTime = response.update_time;
-        const dataList = response.data;
+    let currentTab = 'sanpo';
 
-        console.log("解析后的数据:", dataList);
+    function padCode(code) {
+      return code.toString().padStart(6, '0');
+    }
 
-        // 显示更新时间
-        document.getElementById("update-time").textContent = `数据更新时间：${updateTime}`;
+    function getMarketPrefix(code) {
+      return code.startsWith('6') ? 'sh' : 'sz';
+    }
 
-        // 渲染表格
-        const tbody = document.querySelector("#stock-table tbody");
-        tbody.innerHTML = ""; // 清空旧数据
-        dataList.forEach(item => {
-            const row = document.createElement("tr");
-            row.innerHTML = `
+    function getStockLink(code) {
+      const padded = padCode(code);
+      const prefix = getMarketPrefix(padded);
+      return `https://quote.eastmoney.com/${prefix}${padded}.html`;
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelector(`.tab-btn[onclick="switchTab('${tab}')"]`).classList.add('active');
+      loadData();
+    }
+
+    function loadData() {
+      const url = currentTab === 'sanpo'
+        ? "https://lmh1993.pythonanywhere.com/get-result"
+        : "https://lmh1993.pythonanywhere.com/get-result-flow-in-out";
+
+      document.getElementById("loading-ring").style.display = "block";
+
+      fetch(url)
+        .then(res => res.json())
+        .then(response => {
+          document.getElementById("loading-ring").style.display = "none";
+
+          const updateTime = response.update_time;
+          const dataList = response.data;
+          document.getElementById("update-time").textContent = `数据更新时间：${updateTime}`;
+
+          const thead = document.querySelector("#stock-table thead");
+          const tbody = document.querySelector("#stock-table tbody");
+          tbody.innerHTML = "";
+
+          if (currentTab === 'sanpo') {
+            thead.innerHTML = `
+              <tr>
+                <th>股票名称</th>
+                <th>股票代号</th>
+                <th>主力净流入占比</th>
+                <th>首板日期</th>
+                <th>首板开盘价</th>
+                <th>首板收盘价</th>
+                <th>首板最低价</th>
+                <th>三破日期</th>
+                <th>三破最低价</th>
+                <th>三收日期</th>
+                <th>三收最高价</th>
+              </tr>
+            `;
+            dataList.forEach(item => {
+              const row = document.createElement("tr");
+              row.innerHTML = `
                 <td>${item["股票名称"]}</td>
-                <td>
-                    <a href="${getStockLink(item['代号'])}" target="_blank">
-                        ${padCode(item['代号'])}
-                    </a>
-                </td>
+                <td><a href="${getStockLink(item['代号'])}" target="_blank">${padCode(item['代号'])}</a></td>
                 <td>${item["主力净流入占比"]}%</td>
                 <td>${item["首板日期"]}</td>
                 <td>${item["首板开盘价"]}</td>
@@ -87,24 +164,55 @@
                 <td>${item["三破最低价"]}</td>
                 <td>${item["三收日期"]}</td>
                 <td>${item["三收最高价"]}</td>
+              `;
+              tbody.appendChild(row);
+            });
+          } else {
+            thead.innerHTML = `
+              <tr>
+                <th>股票名称</th>
+                <th>股票代号</th>
+                <th>主力外盘</th>
+                <th>主力内盘</th>
+                <th>外盘:内盘</th>
+                <th>是否在主力净流入榜单</th>
+              </tr>
             `;
-            tbody.appendChild(row);
+
+            const sortedList = dataList.slice().sort((a, b) => {
+              const ratioA = a.selling === 0 ? 0 : a.buying / a.selling;
+              const ratioB = b.selling === 0 ? 0 : b.buying / b.selling;
+              return ratioB - ratioA;
+            });
+
+            sortedList.forEach(item => {
+              const code = item["ts_code"].toString().padStart(6, '0');
+              const name = item["name"];
+              const buying = item["buying"];
+              const selling = item["selling"];
+              const ratio = selling === 0 ? "-" : (buying / selling).toFixed(2);
+              const inMainNetFlowIn = item["in_main_net_flow_in"];
+
+              const row = document.createElement("tr");
+              row.innerHTML = `
+                <td>${name}</td>
+                <td><a href="${getStockLink(code)}" target="_blank">${code}</a></td>
+                <td>${buying}</td>
+                <td>${selling}</td>
+                <td>${ratio}</td>
+                <td>${inMainNetFlowIn ? "是" : "否"}</td>
+              `;
+              tbody.appendChild(row);
+            });
+          }
+        })
+        .catch(error => {
+          console.error("数据加载失败:", error);
+          document.getElementById("loading-ring").style.display = "none";
         });
-    });
-
-    function padCode(code) {
-        return code.toString().padStart(6, '0');
     }
 
-    function getMarketPrefix(code) {
-        return code.startsWith('6') ? 'sh' : 'sz';
-    }
-
-    function getStockLink(code) {
-        const padded = padCode(code);
-        const prefix = getMarketPrefix(padded);
-        return `https://quote.eastmoney.com/${prefix}${padded}.html`;
-    }
+    loadData();
   </script>
 </body>
 </html>
