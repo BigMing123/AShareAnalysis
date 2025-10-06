@@ -180,10 +180,19 @@
             `;
 
             const sortedList = dataList.slice().sort((a, b) => {
+              const inListA = a.in_main_net_flowin ? 1 : 0;
+              const inListB = b.in_main_net_flowin ? 1 : 0;
+
+              // 优先按 in_main_net_flowin 排序（true 在前）
+              if (inListA !== inListB) {
+                return inListB - inListA;
+              }
+
+              // 然后按 ratio 排序（大在前）
               const ratioA = a.selling === 0 ? 0 : a.buying / a.selling;
               const ratioB = b.selling === 0 ? 0 : b.buying / b.selling;
               return ratioB - ratioA;
-            });
+          });
 
             sortedList.forEach(item => {
               const code = item["ts_code"].toString().padStart(6, '0');
@@ -191,7 +200,7 @@
               const buying = item["buying"];
               const selling = item["selling"];
               const ratio = selling === 0 ? "-" : (buying / selling).toFixed(2);
-              const inMainNetFlowIn = item["in_main_net_flow_in"];
+              const inMainNetFlowIn = item["in_main_net_flowin"];
 
               const row = document.createElement("tr");
               row.innerHTML = `
